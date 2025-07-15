@@ -1,0 +1,7 @@
+﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(517,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
+  main.c
+C:\Users\jackb\source\repos\ccalc\param.h(10,3): error C2208: 'param_type_e': no members defined using this type
+C:\Users\jackb\source\repos\ccalc\main.c(23,10): error C2065: 'e': undeclared identifier
+  param.c
+C:\Users\jackb\source\repos\ccalc\param.h(10,3): error C2208: 'param_type_e': no members defined using this type
+  Generating Code...

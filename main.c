@@ -32,7 +32,7 @@ int main(int argc, const char* argv[])
 	InitExit();
 	InitVarList(argv[0]);
 
-	printf("Loaded vars:\n");
+	printf("Loaded vars: ");
 	PrintVarList();
 
 	if (used_argc == 1)
@@ -41,7 +41,7 @@ int main(int argc, const char* argv[])
 	}
 	else
 	{
-		param_list = ParseParams(used_argc - 1, used_argv + 1);
+		param_list = ParseParams(used_argc - 1, (const char**)used_argv + 1); //Quiet compiler with cast
 
 		rpn_list = ConvertParamList(param_list, &assignment_list);
 		CleanupParamList(param_list);

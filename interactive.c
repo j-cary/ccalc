@@ -9,7 +9,7 @@
 
 #define BASE_BUF_SIZE 64
 
-static const char* Input()
+static char* Input()
 {
 	int		buf_size = BASE_BUF_SIZE;
 	char*	base, * last;
@@ -56,7 +56,7 @@ void InteractiveMode()
 {
 	while (1)
 	{
-		const char* input = Input();
+		char* input = Input();
 		param_t* params, * rpn_list;
 		var_t** assignment_list;
 
@@ -73,10 +73,10 @@ void InteractiveMode()
 		}
 
 		//Generate a list of parameters based on the input string
-		params = ParseParams(1, &input);
+		params = ParseParams(1, (const char**) & input); //Quiet compiler with cast - 
 		free(input);
 
-		rpn_list = ConvertParamList(params, &assignment_list);
+		rpn_list = ConvertParamList(params, &assignment_list); //Quite compiler with cast - we're filling out this dynamic array with const vars
 		CleanupParamList(params);
 
 		double answer = Compute(rpn_list);

@@ -9,6 +9,7 @@
 #define PRINTINFO 0
 
 const char* const operators = "+-*/%^()[]=";
+const char* const meaningful_operators = "+-*/%^()[]"; //no equals
 
 static inline _Bool IsOp(const char x)
 {
@@ -19,9 +20,47 @@ static inline _Bool IsOp(const char x)
 	return 0;
 }
 
+static inline _Bool IsRealOp(const char x)
+{
+	for (const char* c = meaningful_operators; *c; c++)
+		if (*c == x)
+			return 1;
+
+	return 0;
+}
+
 #define IsVarChar(x) (isalpha(x) || x == '_')
 #define IsLParen(x) (x == '(' || x == '[')
 #define IsRParen(x) (x == ')' || x == ']')
+
+#pragma region PARAM_SET
+
+#define NEW_PARAM(param, set)	param = malloc_s(sizeof(param_t)); \
+								param->next = NULL; \
+								_Generic((set), \
+									double : SetParamVal(param, &set),	\
+									const var_t* : SetParamVar(param, &set),\
+									char : SetParamOp(param, &set))
+
+void SetParamVal(param_t* this, const void* val)
+{
+	this->type = PARAM_TYPE_NUM;
+	this->val = *(double*)val;
+}
+
+void SetParamVar(param_t* this, const void* var)
+{
+	this->type = PARAM_TYPE_VAR;
+	this->var = *(const var_t**)var; //Double dereference - NEW_PARAM needs the address of the pointer
+}
+
+void SetParamOp(param_t* this, const void* op)
+{
+	this->type = PARAM_TYPE_OP;
+	this->op = *(char*)op;
+}
+
+#pragma endregion 
 
 
 #pragma region PARSE
@@ -31,12 +70,10 @@ static param_t* EvalNum(const char** iter)
 	double val;
 	param_t* param;
 
-	val = strtod(*iter, iter);
+	//HACK: strtod -shouldn't- change **iter, just cast it
+	val = strtod(*iter, (char**)iter);
 
-	param = malloc_s(sizeof(param_t));
-	param->val = val;
-	param->next = NULL;
-	param->type = PARAM_TYPE_NUM;
+	NEW_PARAM(param, val);
 
 	return param;
 }
@@ -50,24 +87,17 @@ static param_t* EvalVar(const char** iter)
 		if (!IsVarChar(**iter))
 			break;
 
-	param = malloc_s(sizeof(param_t));
-
-	//get the var string from the var list
-	param->var = GetVar(start, *iter);
-
-	param->next = NULL;
-	param->type = PARAM_TYPE_VAR;
+	const var_t* var = GetVar(start, *iter);
+	NEW_PARAM(param, var);
 
 	return param;
 }
 
 static param_t* EvalOp(const char** iter)
 {
-	param_t* param = malloc_s(sizeof(param_t));
+	param_t* param;
 
-	param->op = **iter;
-	param->next = NULL;
-	param->type = PARAM_TYPE_OP;
+	NEW_PARAM(param, **iter);
 
 	(*iter)++;
 	return param;
@@ -75,7 +105,6 @@ static param_t* EvalOp(const char** iter)
 
 static param_t* ParseParam(const char* param, param_t** last)
 {
-	const char* start = param;
 	param_t* head = NULL, * prev = NULL; //set prev to NULL to shut up compiler
 
 	for (const char* c = param; *c; /*c++*/)
@@ -89,7 +118,7 @@ static param_t* ParseParam(const char* param, param_t** last)
 		else if (isspace(*c))
 			c++;
 		else
-			Exit(ERROR_INPUT);
+			Exit(ERR_INPUT);
 
 		if (!head) //first iteration
 			head = *last;
@@ -164,7 +193,7 @@ void PrintParamList(const param_t* head)
 //Determine what vars, if any, will be assigned to 
 //returns - the first param after the '='
 //returns - head if no '='
-static const param_t* SetupAssignments(const param_t* head, const var_t*** assn_list)
+static const param_t* SetupAssignments(const param_t* head, var_t*** assn_list)
 {
 	//_Bool found_op = 0, found_num = 0;
 	_Bool found_bad = 0;
@@ -193,6 +222,9 @@ static const param_t* SetupAssignments(const param_t* head, const var_t*** assn_
 	}
 	//Must be a valid assignment prefix at this point
 
+	if (found_bad)
+		Exit(ERR_SYNTAX); //somthing like '1' '='
+
 	if (var_count == 0)
 		Exit(ERR_SYNTAX); //'=' with nothing before it
 
@@ -204,9 +236,9 @@ static const param_t* SetupAssignments(const param_t* head, const var_t*** assn_
 
 	const param_t* var = head;
 	for (int i = 0; i < var_count; i++, var = var->next)
-		(*assn_list)[i] = var->var; //Copy the var data references into the convenient list
+		//Cast - the parameters never modify the variables, but the assignment list will
+		(*assn_list)[i] = (var_t*)var->var; //Copy the var data references into the convenient list. 
 	(*assn_list)[var_count] = NULL;
-	var_t* v = (*assn_list)[var_count];
 
 	return cur->next;
 }
@@ -216,8 +248,8 @@ static const param_t* SetupAssignments(const param_t* head, const var_t*** assn_
 //returns - >0 if op1 is higher precedence
 static int Precedence(char op1, char op2)
 {
-	if (!IsOp(op2))
-		Exit(ERR_PROGRAM);
+	if (!IsRealOp(op2))
+		Exit(ERR_SYNTAX);
 
 	switch (op1)
 	{
@@ -240,7 +272,7 @@ static int Precedence(char op1, char op2)
 	}
 
 	Exit(ERR_PROGRAM);
-	return 0; //should never be reached
+	return 0; 
 }
 
 static _Bool IsRightAssociative(char op)
@@ -250,67 +282,34 @@ static _Bool IsRightAssociative(char op)
 	return 0;
 }
 
-#define APPEND_VAR(head, prev, last, set_var)	last = malloc_s(sizeof(param_t)); \
-												last->next = NULL; \
-												last->type = PARAM_TYPE_VAR;  \
-												last->var = set_var; \
-												\
-												if (!head) \
-													head = last; \
-												else \
-													prev->next = last; \
-												prev = last
+#define HEAD_CHECK(head, prev, last) \
+									if(!head) head = last; \
+									else prev->next = last; \
+									prev = last;
+				
 
-#define APPEND_VAL(head, prev, last, set_val)	last = malloc_s(sizeof(param_t)); \
-												last->next = NULL; \
-												last->type = PARAM_TYPE_NUM;  \
-												last->val = set_val; \
-												\
-												if (!head) \
-													head = last; \
-												else \
-													prev->next = last; \
-												prev = last
-
-//BE VERY CAREFUL WITH THIS. MULTIPLE USAGES INVOKE A PREFIX DECREMENT
-#define APPEND_OP(head, prev, last, set_op)		last = malloc_s(sizeof(param_t)); \
-												last->next = NULL; \
-												last->type = PARAM_TYPE_OP;  \
-												last->op = set_op; \
-												\
-												if (!head) \
-													head = last; \
-												else \
-													prev->next = last; \
-												prev = last
-
-#define STATIC_ARRAY 1 //tmp - FIXME
+#define STATIC_ARRAY 0
 
 //Convert the list to RPN. Generate a list of vars to assign to 
 param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 {
 	param_t* head = NULL, * prev = NULL;
 #if !STATIC_ARRAY
-	int num_vals = 0, num_ops = 0;
-	double* out_queue, accumulator;
+	int num_ops = 0;
 	char* op_stack;
 #else
 	//double out_queue[128];
 	char op_stack[128];
 #endif
-	int out_top = 0, op_top = 0;
+	* assn_list = NULL;
+	int op_top = 0;
 	const param_t* cur = SetupAssignments(src_head, assn_list);
 
 #if !STATIC_ARRAY
 	for (const param_t* c = cur; c; c= c->next)
-	{
-		if (c->type == PARAM_TYPE_NUM || c->type == PARAM_TYPE_VAR)
-			num_vals++;
-		else if (c->type == PARAM_TYPE_OP)
+		if (c->type == PARAM_TYPE_OP)
 			num_ops++;
-	}
 
-	out_queue = malloc_s(num_vals);
 	op_stack = malloc_s(num_ops);
 #endif
 
@@ -320,11 +319,13 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 
 		if (cur->type == PARAM_TYPE_VAR)
 		{
-			APPEND_VAR(head, prev, last, cur->var);
+			NEW_PARAM(last, cur->var);
+			HEAD_CHECK(head, prev, last);
 		}
 		else if (cur->type == PARAM_TYPE_NUM)
 		{
-			APPEND_VAL(head, prev, last, cur->val);
+			NEW_PARAM(last, cur->val);
+			HEAD_CHECK(head, prev, last);
 		}
 		else
 		{//Operator
@@ -343,7 +344,8 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 						break;
 
 					//Note prefix operator
-					APPEND_OP(head, prev, last, op_stack[--op_top]);
+					NEW_PARAM(last, op_stack[--op_top]);
+					HEAD_CHECK(head, prev, last);
 				}
 
 				op_top--; //Discard left parenthesis
@@ -368,7 +370,8 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 						break;
 
 
-					APPEND_OP(head, prev, last, op_stack[--op_top]);
+					NEW_PARAM(last, op_stack[--op_top]);
+					HEAD_CHECK(head, prev, last);
 				}
 
 				op_stack[op_top++] = cur->op;
@@ -380,7 +383,8 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 	for (int i = op_top - 1; i >= 0; i--)
 	{
 		param_t* last;
-		APPEND_OP(head, prev, last, op_stack[--op_top]);
+		NEW_PARAM(last, op_stack[--op_top]);
+		HEAD_CHECK(head, prev, last);
 	}
 
 #if _DEBUG && PRINTINFO
@@ -389,17 +393,12 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 #endif
 
 #if !STATIC_ARRAY
-	free(out_queue);
 	free(op_stack);
 #endif
 
 	return head;
 }
 
-#undef APPEND_VAR
-#undef APPEND_VAL
-#undef APPEND_OP
-
-
+#undef HEAD_CHECK
 
 #pragma endregion

@@ -1,7 +1,7 @@
 #include "error.h"
 #include <stdio.h>
 
-static enum error_e code = ERROR_NONE;
+static enum error_e code = ERR_NONE;
 
 const char* error_msgs[ERROR_MAX_PRINTABLE - 1] =
 {
@@ -19,7 +19,7 @@ const char* usage_msg = "Usage: ";
 
 void ExitFunc(void)
 {
-	if (code == ERROR_NONE)
+	if (code == ERR_NONE)
 		return; //Nothing to print
 
 	if (code >= ERROR_MAX_PRINTABLE)

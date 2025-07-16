@@ -1,3 +1,0 @@
-﻿  var.c
-C:\Users\jackb\source\repos\ccalc\var.c(43,7): warning C4101: 'len': unreferenced local variable
-  ccalc.vcxproj -> c:\software\cmd_tools\ccalc.exe

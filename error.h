@@ -3,10 +3,10 @@
 
 enum error_e
 {
-	ERROR_UNLISTED = -1, //Just print the usage message
-	ERROR_NONE, //normal exit
-	ERROR_GENERIC,
-	ERROR_INPUT,
+	ERR_UNLISTED = -1, //Just print the usage message
+	ERR_NONE, //normal exit
+	ERR_GENERIC,
+	ERR_INPUT,
 	ERR_MEM,
 	ERR_NOINIT,
 	ERR_PARENTHESIS,
@@ -19,6 +19,6 @@ enum error_e
 };
 
 void InitExit();
-void Exit(int);
+__declspec(noreturn) void Exit(int);
 
 void* malloc_s(size_t size);

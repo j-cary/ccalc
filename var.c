@@ -35,15 +35,16 @@ static void ParseVarFile(FILE* file)
 	fseek(varfile, 0, SEEK_SET);
 
 	double val;
-	int ret;
-	//FIXME!!!
+
 	while (!feof(file))
 	{
 		var_t* var;
-		int len;
 
-		ret = fscanf_s(varfile, "%s", buf, (unsigned)sizeof buf);
-		ret = fscanf_s(varfile, "%lf", &val);
+		if (fscanf_s(varfile, "%s", buf, (unsigned)sizeof buf) != 1)
+			break;
+
+		if (fscanf_s(varfile, "%lf", &val) != 1)
+			break;
 
 		var = GetVar(buf, buf + strlen(buf));
 		var->val = val;
@@ -88,8 +89,13 @@ void ClearVarList()
 
 void PrintVarList()
 {
-	for (unsigned short i = 1; i < varcount; i++)
-		printf("%s, ", varlist[i].name);
+	if (varcount < 2)
+		return;
+
+	printf("%s", varlist[1].name);
+
+	for (unsigned short i = 2; i < varcount; i++)
+		printf(", %s", varlist[i].name);
 	printf("\n");
 }
 
@@ -124,7 +130,7 @@ var_t* GetVar(const char* start, const char* end)
 	size_t strlen = end - start;
 
 	if (varcount > VARS_MAX)
-		Exit(ERROR_GENERIC);
+		Exit(ERR_MEM);
 
 	for (unsigned short i = 0; i < varcount; i++)
 		if(!strncmp(varlist[i].name, start, strlen))

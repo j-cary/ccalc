@@ -36,7 +36,7 @@ double Compute(const param_t* expr)
 		{//operator
 			double accumulator, op1, op2;
 
-			if (top < 2)
+			if ((i->op == 'm' && top < 1) || (i->op != 'm' && top < 2))
 			{
 				free(stack);
 				Error(ERR_SYNTAX, 0);
@@ -53,6 +53,7 @@ double Compute(const param_t* expr)
 			case '/': accumulator = op1 / op2; break;
 			case '%': accumulator = (double)((long long)op1 % (long long)op2); break;
 			case '^': accumulator = pow(op1, op2); break;
+			case 'm': accumulator = -op2; top++; break;
 			default: 
 				free(stack);
 				Error(ERR_INPUT, 0);

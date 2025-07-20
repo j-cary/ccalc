@@ -34,10 +34,6 @@ typedef struct param_s
 	struct param_s* next;
 } param_t;
 
-void SetParamVal(param_t* this, const void* val);
-void SetParamVar(param_t* this, const void* var);
-void SetParamOp(param_t* this, const void* op);
-
 //Returns a dynamically allocated parameter 
 //ERROR - input
 param_t* ParseParams(int count, const char* args[]);

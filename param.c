@@ -6,8 +6,10 @@
 #include "var.h"
 #include "error.h"
 
+//TODO: add support for unary -
+
 const char* const operators = "+-*/%^()[]=";
-const char* const meaningful_operators = "+-*/%^()[]"; //no equals
+const char* const meaningful_operators = "+-*/%^()[]m"; //no equals, explicit unary minus
 
 static inline _Bool IsOp(const char x)
 {
@@ -33,26 +35,28 @@ static inline _Bool IsRealOp(const char x)
 
 #pragma region PARAM_SET
 
-#define NEW_PARAM(param, set)	param = malloc_s(sizeof(param_t)); \
+#define NEW_PARAM(param, set)	do {\
+								param = malloc_s(sizeof(param_t)); \
 								param->next = NULL; \
 								_Generic((set), \
 									double : SetParamVal(param, &set),	\
 									const var_t* : SetParamVar(param, &set),\
-									char : SetParamOp(param, &set))
+									char : SetParamOp(param, &set)); \
+								} while(0)
 
-void SetParamVal(param_t* this, const void* val)
+static void SetParamVal(param_t* this, const void* val)
 {
 	this->type = PARAM_TYPE_NUM;
 	this->val = *(double*)val;
 }
 
-void SetParamVar(param_t* this, const void* var)
+static void SetParamVar(param_t* this, const void* var)
 {
 	this->type = PARAM_TYPE_VAR;
 	this->var = *(const var_t**)var; //Double dereference - NEW_PARAM needs the address of the pointer
 }
 
-void SetParamOp(param_t* this, const void* op)
+static void SetParamOp(param_t* this, const void* op)
 {
 	this->type = PARAM_TYPE_OP;
 	this->op = *(char*)op;
@@ -91,29 +95,42 @@ static param_t* EvalVar(const char** iter)
 	return param;
 }
 
-static param_t* EvalOp(const char** iter)
+static param_t* EvalOp(const char** iter, _Bool* minus_is_unary)
 {
 	param_t* param;
+	static const char unary = 'm';
 
-	NEW_PARAM(param, **iter);
+	if ((*minus_is_unary) && (**iter == '-'))
+		NEW_PARAM(param, unary);
+	else
+		NEW_PARAM(param, **iter);
 
 	(*iter)++;
 	return param;
 }
 
 //ERROR - input
-static param_t* ParseParam(const char* param, param_t** last)
+static param_t* ParseParam(const char* param, _Bool* minus_is_unary, param_t** last)
 {
 	param_t* head = NULL, * prev = NULL; //set prev to NULL to shut up compiler
 
 	for (const char* c = param; *c; )
 	{
 		if (IsOp(*c))
-			*last = EvalOp(&c);
+		{
+			*last = EvalOp(&c, minus_is_unary);
+			*minus_is_unary = 1;
+		}
 		else if (IsVarChar(*c))
+		{
 			*last = EvalVar(&c);
+			*minus_is_unary = 0;
+		}
 		else if (isdigit(*c))
+		{
 			*last = EvalNum(&c);
+			*minus_is_unary = 0;
+		}
 		else if (isspace(*c))
 			c++;
 		else
@@ -132,13 +149,14 @@ static param_t* ParseParam(const char* param, param_t** last)
 param_t* ParseParams(int count, const char* args[])
 {
 	param_t* head = NULL, * prev = NULL;
+	_Bool minus_is_unary = 1; //after the start, or any operator. Must be preserved between calls to ParseParam
 
 	for (int i = 0; i < count; i++)
 	{
 		const char* arg = args[i];
 		param_t* localhead, *last = NULL;
 
-		localhead = ParseParam(arg, &last);
+		localhead = ParseParam(arg, &minus_is_unary, &last);
 
 		if (GetErrno() != ERR_NONE)
 			return NULL;
@@ -244,40 +262,39 @@ static const param_t* SetupAssignments(const param_t* head, var_t*** assn_list)
 
 //returns - < 0 if op1 is lower precedence
 //returns - 0 if op1 and op2 have same precedence
-//returns - >0 if op1 is higher precedence
+//returns - > 0 if op1 is higher precedence
 //ERROR - syntax
 static int Precedence(char op1, char op2)
 {
-	if (!IsRealOp(op2))
-		Error(ERR_SYNTAX, 0);
+	int pr1, pr2;
 
 	switch (op1)
 	{
-	case '+':
-	case '-':
-		if (op2 == '+' || op2 == '-')
-			return 0;
-		return -1;
-	case '*':
-	case '/':
-	case '%':
-		if (op2 == '+' || op2 == '-')
-			return 1;
-		if (op2 != '^')
-			return 0;
-		return -1;
-	case '^':
-		if (op2 == '^')
-			return 0;
+	case '+': case '-': pr1 = 0; break;
+	case '*': case '/': case '%': pr1 = 1; break;
+	case '^': pr1 = 2; break;
+	case 'm': pr1 = 3; break;
+	default: Error(ERR_SYNTAX, 0);
+	}
+	switch (op2)
+	{
+	case '+': case '-': pr2 = 0; break;
+	case '*': case '/': case '%': pr2 = 1; break;
+	case '^': pr2 = 2; break;
+	case 'm': pr2 = 3; break;
+	default: Error(ERR_SYNTAX, 0);
 	}
 
-	Exit(ERR_PROGRAM);
-	return 0; 
+	if (pr1 == pr2)
+		return 0;
+	if (pr1 > pr2)
+		return 1;
+	return -1;
 }
 
 static _Bool IsRightAssociative(char op)
 {
-	if (op == '^')
+	if (op == '^' || op == 'm')
 		return 1;
 	return 0;
 }
@@ -355,7 +372,7 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 
 					precedence = Precedence(other, cur->op);
 
-					if (!GetErrno())
+					if (GetErrno() != ERR_NONE)
 						return NULL;
 
 					//if ((precedence > 0) || (precedence == 0 && !IsRightAssociative(cur->op))) ;

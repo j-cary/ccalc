@@ -10,7 +10,7 @@
 
 static var_t varlist[VARS_MAX];
 static var_t* const ans = &varlist[0];
-static unsigned short varcount = 1;
+static unsigned short varcount = 0;
 
 static FILE* varfile = NULL;
 static const char* path;
@@ -59,7 +59,7 @@ void InitVarList(const char* _path)
 	ans->init = 0;
 	ans->name = malloc_s(4 * sizeof(char));
 	strcpy_s(ans->name, 4, "ans");
-
+	varcount++;
 
 	path = _path;
 	OpenVarFile(path, "a+");
@@ -89,12 +89,12 @@ void ClearVarList()
 
 void PrintVarList()
 {
-	if (varcount < 2)
+	if (varcount < 1)
 		return;
 
-	printf("%s", varlist[1].name);
+	printf("%s", varlist[0].name);
 
-	for (unsigned short i = 2; i < varcount; i++)
+	for (unsigned short i = 1; i < varcount; i++)
 		printf(", %s", varlist[i].name);
 	printf("\n");
 }

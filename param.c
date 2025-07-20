@@ -6,8 +6,6 @@
 #include "var.h"
 #include "error.h"
 
-#define PRINTINFO 0
-
 const char* const operators = "+-*/%^()[]=";
 const char* const meaningful_operators = "+-*/%^()[]"; //no equals
 
@@ -103,11 +101,12 @@ static param_t* EvalOp(const char** iter)
 	return param;
 }
 
+//ERROR - input
 static param_t* ParseParam(const char* param, param_t** last)
 {
 	param_t* head = NULL, * prev = NULL; //set prev to NULL to shut up compiler
 
-	for (const char* c = param; *c; /*c++*/)
+	for (const char* c = param; *c; )
 	{
 		if (IsOp(*c))
 			*last = EvalOp(&c);
@@ -118,7 +117,7 @@ static param_t* ParseParam(const char* param, param_t** last)
 		else if (isspace(*c))
 			c++;
 		else
-			Exit(ERR_INPUT);
+			Error(ERR_INPUT, NULL);
 
 		if (!head) //first iteration
 			head = *last;
@@ -141,6 +140,9 @@ param_t* ParseParams(int count, const char* args[])
 
 		localhead = ParseParam(arg, &last);
 
+		if (GetErrno() != ERR_NONE)
+			return NULL;
+
 		if (!head) //first iteration
 			head = localhead;
 		else
@@ -148,9 +150,6 @@ param_t* ParseParams(int count, const char* args[])
 		prev = last;
 	}
 
-#if _DEBUG && PRINTINFO
-	PrintParamList(head);
-#endif
 	return head;
 }
 
@@ -193,9 +192,9 @@ void PrintParamList(const param_t* head)
 //Determine what vars, if any, will be assigned to 
 //returns - the first param after the '='
 //returns - head if no '='
+//ERROR - Syntax
 static const param_t* SetupAssignments(const param_t* head, var_t*** assn_list)
 {
-	//_Bool found_op = 0, found_num = 0;
 	_Bool found_bad = 0;
 	int var_count = 0;
 	const param_t* cur;
@@ -223,13 +222,13 @@ static const param_t* SetupAssignments(const param_t* head, var_t*** assn_list)
 	//Must be a valid assignment prefix at this point
 
 	if (found_bad)
-		Exit(ERR_SYNTAX); //somthing like '1' '='
+		Error(ERR_SYNTAX, NULL); //somthing like '1' '='
 
 	if (var_count == 0)
-		Exit(ERR_SYNTAX); //'=' with nothing before it
+		Error(ERR_SYNTAX, NULL); //'=' with nothing before it
 
 	if (!cur->next) //Ends with a '=' aka nonsense
-		Exit(ERR_SYNTAX);
+		Error(ERR_SYNTAX, NULL);
 
 	//Allocate space for the array
 	*assn_list = malloc_s((var_count + 1) * sizeof assn_list[0]); //Make room for a null terminator
@@ -246,10 +245,11 @@ static const param_t* SetupAssignments(const param_t* head, var_t*** assn_list)
 //returns - < 0 if op1 is lower precedence
 //returns - 0 if op1 and op2 have same precedence
 //returns - >0 if op1 is higher precedence
+//ERROR - syntax
 static int Precedence(char op1, char op2)
 {
 	if (!IsRealOp(op2))
-		Exit(ERR_SYNTAX);
+		Error(ERR_SYNTAX, 0);
 
 	switch (op1)
 	{
@@ -288,30 +288,23 @@ static _Bool IsRightAssociative(char op)
 									prev = last;
 				
 
-#define STATIC_ARRAY 0
-
 //Convert the list to RPN. Generate a list of vars to assign to 
 param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 {
 	param_t* head = NULL, * prev = NULL;
-#if !STATIC_ARRAY
 	int num_ops = 0;
 	char* op_stack;
-#else
-	//double out_queue[128];
-	char op_stack[128];
-#endif
-	* assn_list = NULL;
 	int op_top = 0;
 	const param_t* cur = SetupAssignments(src_head, assn_list);
 
-#if !STATIC_ARRAY
+	if (GetErrno() != ERR_NONE)
+		return NULL;
+
 	for (const param_t* c = cur; c; c= c->next)
 		if (c->type == PARAM_TYPE_OP)
 			num_ops++;
 
 	op_stack = malloc_s(num_ops);
-#endif
 
 	for (; cur; cur = cur->next)
 	{
@@ -338,7 +331,7 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 				while (1)
 				{
 					if (op_top == 0)
-						Exit(ERR_PARENTHESIS);
+						Error(ERR_PARENTHESIS, NULL);
 
 					if (IsLParen(op_stack[op_top - 1]))
 						break;
@@ -361,6 +354,9 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 						break;
 
 					precedence = Precedence(other, cur->op);
+
+					if (!GetErrno())
+						return NULL;
 
 					//if ((precedence > 0) || (precedence == 0 && !IsRightAssociative(cur->op))) ;
 					//else break;
@@ -387,14 +383,7 @@ param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 		HEAD_CHECK(head, prev, last);
 	}
 
-#if _DEBUG && PRINTINFO
-	printf("======\n");
-	PrintParamList(head);
-#endif
-
-#if !STATIC_ARRAY
 	free(op_stack);
-#endif
 
 	return head;
 }

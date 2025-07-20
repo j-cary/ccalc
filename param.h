@@ -38,8 +38,11 @@ void SetParamVal(param_t* this, const void* val);
 void SetParamVar(param_t* this, const void* var);
 void SetParamOp(param_t* this, const void* op);
 
-//Returns a dynamically allocated parameter list
+//Returns a dynamically allocated parameter 
+//ERROR - input
 param_t* ParseParams(int count, const char* args[]);
+
+//ERROR - Parenthesis, syntax
 param_t* ConvertParamList(const param_t* head, var_t*** assn_list);
 void CleanupParamList(param_t* head);
 

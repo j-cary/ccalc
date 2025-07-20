@@ -6,7 +6,7 @@
 #include "var.h"
 
 #define VARS_MAX 128
-#define LINE_MAX_WIDTH 128
+#define LINE_MAX_WIDTH 512
 
 static var_t varlist[VARS_MAX];
 static var_t* const ans = &varlist[0];
@@ -119,9 +119,7 @@ void CleanupVars()
 		printf("Couldn't open variable file for saving\n");
 
 	for (unsigned short i = 0; i < varcount; i++)
-	{
 		free(varlist[i].name);
-	}
 }
 
 var_t* GetVar(const char* start, const char* end)
@@ -129,7 +127,7 @@ var_t* GetVar(const char* start, const char* end)
 	var_t* cur;
 	size_t strlen = end - start;
 
-	if (varcount > VARS_MAX)
+	if (varcount >= VARS_MAX)
 		Exit(ERR_MEM);
 
 	for (unsigned short i = 0; i < varcount; i++)

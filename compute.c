@@ -3,26 +3,18 @@
 #include "compute.h"
 #include "error.h"
 
-#define FIXED_ARRAY 0
-
 double Compute(const param_t* expr)
 {
-#if FIXED_ARRAY
-	double stack[128];
-	int top = 0;
-
-#else
 	double* stack;
 	int top = 0;
 
-	//Allocate enough space for every single var/val in this tack.
+	//Allocate enough space for every single var/val in this stack. Technically overkill, but short of doing a linked list 
 	for (const param_t* i = expr; i; i = i->next)
 		if (i->type == PARAM_TYPE_VAR || i->type == PARAM_TYPE_NUM)
 			top++;
 
 	stack = malloc_s(top * sizeof(double));
 	top = 0;
-#endif
 
 	for (const param_t* i = expr; i; i = i->next)
 	{
@@ -30,10 +22,8 @@ double Compute(const param_t* expr)
 		{
 			if (!i->var->init)
 			{
-#if !FIXED_ARRAY
 				free(stack);
-#endif
-				Exit(ERR_NOINIT);
+				Error(ERR_NOINIT, 0);
 			}
 
 			stack[top++] = i->var->val;
@@ -48,10 +38,8 @@ double Compute(const param_t* expr)
 
 			if (top < 2)
 			{
-#if !FIXED_ARRAY
 				free(stack);
-#endif
-				Exit(ERR_SYNTAX);
+				Error(ERR_SYNTAX, 0);
 			}
 
 			op2 = stack[--top];
@@ -66,10 +54,8 @@ double Compute(const param_t* expr)
 			case '%': accumulator = (double)((long long)op1 % (long long)op2); break;
 			case '^': accumulator = pow(op1, op2); break;
 			default: 
-#if !FIXED_ARRAY
 				free(stack);
-#endif
-				Exit(ERR_INPUT);
+				Error(ERR_INPUT, 0);
 				break;
 			}
 
@@ -79,12 +65,10 @@ double Compute(const param_t* expr)
 
 	double ret = stack[0];
 
-#if !FIXED_ARRAY
 	free(stack);
-#endif
 
 	if (top != 1) //something like '2 3' as input
-		Exit(ERR_SYNTAX);
+		Error(ERR_SYNTAX, 0);
 
 
 	return ret;

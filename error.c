@@ -6,16 +6,19 @@ static enum error_e code = ERR_NONE;
 const char* error_msgs[ERROR_MAX_PRINTABLE - 1] =
 {
 	"Unknown error",
-	"Error: Bad input character",
 	"Error: No free memory",
-	"Error: Attempted to use an un-initialized variable",
-	"Error: Mismatched parentheses",
 	"Error: Programmer mistake",
-	"Error: Syntax",
-	"Error: Failed to read from file",
+
+	"Error: Bad input character", //No exit
+	"Error: Attempted to use an un-initialized variable", //No exit
+	"Error: Mismatched parentheses", //No exit
+	"Error: Syntax", //No exit
+	"Error: Failed to read from file", //No exit
 };
 
 const char* usage_msg = "Usage: ";
+
+#define ERROR_FIRST_NOEXIT ERR_INPUT
 
 void ExitFunc(void)
 {
@@ -36,10 +39,30 @@ void InitExit()
 }
 
 __declspec(noreturn)
-void Exit(enum error_e _code)
+void _Error(enum error_e _code)
 {
 	code = _code;
-	exit(code);
+
+	if (code >= ERROR_FIRST_NOEXIT)
+	{
+		printf("%s\n", error_msgs[code - 1]);
+	}
+	else
+	{
+		exit(code);
+	}
+}
+
+enum error_e GetErrno()
+{
+	return code;
+}
+
+enum error_e ClrErrno()
+{
+	enum error_e err = code;
+	code = ERR_NONE;
+	return err;
 }
 
 void* malloc_s(size_t size)

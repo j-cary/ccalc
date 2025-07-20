@@ -59,6 +59,7 @@ void InteractiveMode()
 		char* input = Input();
 		param_t* params, * rpn_list;
 		var_t** assignment_list;
+		enum error_e err;
 
 		if (!strcmp(input, "exit") || !strcmp(input, "quit"))
 		{
@@ -75,11 +76,30 @@ void InteractiveMode()
 		//Generate a list of parameters based on the input string
 		params = ParseParams(1, (const char**) & input); //Quiet compiler with cast - 
 		free(input);
+		if ((err = ClrErrno()) != ERR_NONE)
+		{
+			CleanupParamList(params);
+			continue;
+		}
 
-		rpn_list = ConvertParamList(params, &assignment_list); //Quite compiler with cast - we're filling out this dynamic array with const vars
+		rpn_list = ConvertParamList(params, &assignment_list); //Quiet compiler with cast - we're filling out this dynamic array with const vars
 		CleanupParamList(params);
+		if ((err = ClrErrno()) != ERR_NONE)
+		{
+			CleanupParamList(rpn_list);
+			free(assignment_list);
+			continue;
+		}
+
 
 		double answer = Compute(rpn_list);
+		if ((err = ClrErrno()) != ERR_NONE)
+		{
+			CleanupParamList(rpn_list);
+			free(assignment_list);
+			continue;
+		}
+
 		printf("\t\t%lf\n", answer);
 
 		SetVars(assignment_list, answer);

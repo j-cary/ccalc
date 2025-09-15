@@ -27,15 +27,16 @@ int main(int argc, const char* argv[])
 	else
 	{
 		enum error_e err;
+		bool cond;
 
-		param_list = ParseParams(argc - 1, argv + 1);
+		param_list = ParseParams(argc - 1, argv + 1, &cond);
 		if ((err = GetErrno()) != ERR_NONE)
 		{
 			CleanupParamList(param_list);
 			return err;
 		}
 
-		rpn_list = ConvertParamList(param_list, &assignment_list);
+		rpn_list = ConvertParamList(param_list, &assignment_list, cond);
 		CleanupParamList(param_list);
 		if ((err = GetErrno() != ERR_NONE))
 		{

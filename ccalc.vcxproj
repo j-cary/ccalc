@@ -136,6 +136,7 @@
     <ClCompile Include="interactive.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="param.c" />
+    <ClCompile Include="parse_param.c" />
     <ClCompile Include="var.c" />
   </ItemGroup>
   <ItemGroup>
@@ -143,6 +144,7 @@
     <ClInclude Include="error.h" />
     <ClInclude Include="interactive.h" />
     <ClInclude Include="param.h" />
+    <ClInclude Include="param_shared.h" />
     <ClInclude Include="var.h" />
     <ClInclude Include="__template.h" />
   </ItemGroup>

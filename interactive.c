@@ -75,6 +75,7 @@ void InteractiveMode(void)
 		param_t* params, * rpn_list;
 		var_t** assignment_list;
 		enum error_e err;
+		bool cond;
 
 		if (!strcmp(input, "exit") || !strcmp(input, "quit"))
 		{
@@ -89,7 +90,7 @@ void InteractiveMode(void)
 		}
 
 		//Generate a list of parameters based on the input string
-		params = ParseParams(1, (const char**) & input); //Quiet compiler with cast - 
+		params = ParseParams(1, (const char**) & input, &cond); //Quiet compiler with cast
 		free(input);
 		if ((err = ClrErrno()) != ERR_NONE)
 		{
@@ -97,7 +98,7 @@ void InteractiveMode(void)
 			continue;
 		}
 
-		rpn_list = ConvertParamList(params, &assignment_list); //Quiet compiler with cast - we're filling out this dynamic array with const vars
+		rpn_list = ConvertParamList(params, &assignment_list, cond);
 		CleanupParamList(params);
 		if ((err = ClrErrno()) != ERR_NONE)
 		{

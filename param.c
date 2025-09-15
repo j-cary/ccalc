@@ -2,186 +2,29 @@
 Purpose: Handle parameters
 ***************************************************************************************************/
 #include <stdio.h> //printf
-#include <ctype.h> //isdigit
-#include <stdlib.h> //atof
+#include "param_shared.h"
 
-#include "param.h"
-#include "var.h"
-#include "error.h"
-
-/***************************************************************************************************
-										Private Variables
-***************************************************************************************************/
-
-const char* const operators = "+-*/%^()[]=";
-const char* const meaningful_operators = "+-*/%^()[]m"; //no equals, explicit unary minus
+/* TODO: guide for adding new cond operators */
 
 /***************************************************************************************************
 										Defines/Typedefs
 ***************************************************************************************************/
 
-static inline _Bool IsOp(const char x)
-{
-	for (const char* c = operators; *c; c++)
-		if (*c == x)
-			return 1;
-
-	return 0;
-}
-
-static inline _Bool IsRealOp(const char x)
-{
-	for (const char* c = meaningful_operators; *c; c++)
-		if (*c == x)
-			return 1;
-
-	return 0;
-}
-
-#define IsVarChar(x) (isalpha(x) || x == '_')
 #define IsLParen(x) (x == '(' || x == '[')
 #define IsRParen(x) (x == ')' || x == ']')
 
-#pragma region PARAM_SET
+/***************************************************************************************************
+										Public Variables
+***************************************************************************************************/
 
-#define NEW_PARAM(param, set)	do {\
-								param = malloc_s(sizeof(param_t)); \
-								param->next = NULL; \
-								_Generic((set), \
-									double : SetParamVal(param, &set),	\
-									const var_t* : SetParamVar(param, &set),\
-									char : SetParamOp(param, &set)); \
-								} while(0)
+/* anD, oR, Equal, Less than, Greater than, Not equal */
+const char op_and = 'd', op_or = 'r', op_eq = 'e', op_le = 'l', op_ge = 'g', op_ne = 'n';
 
-static void SetParamVal(param_t* this, const void* val)
-{
-	this->type = PARAM_TYPE_NUM;
-	this->val = *(double*)val;
-}
+/***************************************************************************************************
+										Private Variables
+***************************************************************************************************/
 
-static void SetParamVar(param_t* this, const void* var)
-{
-	this->type = PARAM_TYPE_VAR;
-	this->var = *(const var_t**)var; //Double dereference - NEW_PARAM needs the address of the pointer
-}
-
-static void SetParamOp(param_t* this, const void* op)
-{
-	this->type = PARAM_TYPE_OP;
-	this->op = *(char*)op;
-}
-
-#pragma endregion 
-
-
-#pragma region PARSE
-
-static param_t* EvalNum(const char** iter)
-{
-	double val;
-	param_t* param;
-
-	//HACK: strtod -shouldn't- change **iter, just cast it
-	val = strtod(*iter, (char**)iter);
-
-	NEW_PARAM(param, val);
-
-	return param;
-}
-
-static param_t* EvalVar(const char** iter)
-{
-	const char* start = *iter;
-	param_t* param;
-
-	for (; **iter; (*iter)++)
-		if (!IsVarChar(**iter))
-			break;
-
-	const var_t* var = GetVar(start, *iter);
-	NEW_PARAM(param, var);
-
-	return param;
-}
-
-static param_t* EvalOp(const char** iter, _Bool* minus_is_unary)
-{
-	param_t* param;
-	static const char unary = 'm';
-
-	if ((*minus_is_unary) && (**iter == '-'))
-		NEW_PARAM(param, unary);
-	else
-		NEW_PARAM(param, **iter);
-
-	(*iter)++;
-	return param;
-}
-
-//ERROR - input
-static param_t* ParseParam(const char* param, _Bool* minus_is_unary, param_t** last)
-{
-	param_t* head = NULL, * prev = NULL; //set prev to NULL to shut up compiler
-
-	for (const char* c = param; *c; )
-	{
-		if (IsOp(*c))
-		{
-			*last = EvalOp(&c, minus_is_unary);
-			*minus_is_unary = 1;
-		}
-		else if (IsVarChar(*c))
-		{
-			*last = EvalVar(&c);
-			*minus_is_unary = 0;
-		}
-		else if (isdigit(*c))
-		{
-			*last = EvalNum(&c);
-			*minus_is_unary = 0;
-		}
-		else if (isspace(*c))
-			c++;
-		else
-			Error(ERR_INPUT, NULL);
-
-		if (!head) //first iteration
-			head = *last;
-		else
-			prev->next = *last;
-		prev = *last;
-	}
-
-	return head;
-}
-
-param_t* ParseParams(int count, const char* args[])
-{
-	param_t* head = NULL, * prev = NULL;
-	_Bool minus_is_unary = 1; //after the start, or any operator. Must be preserved between calls to ParseParam
-
-	for (int i = 0; i < count; i++)
-	{
-		const char* arg = args[i];
-		param_t* localhead, *last = NULL;
-
-		localhead = ParseParam(arg, &minus_is_unary, &last);
-
-		if (GetErrno() != ERR_NONE)
-			return NULL;
-
-		if (!head) //first iteration
-			head = localhead;
-		else
-			prev->next = localhead;
-		prev = last;
-	}
-
-	return head;
-}
-
-#pragma endregion
-
+static bool conditional;
 
 void CleanupParamList(param_t* head)
 {
@@ -222,7 +65,7 @@ void PrintParamList(const param_t* head)
 //ERROR - Syntax
 static const param_t* SetupAssignments(const param_t* head, var_t*** assn_list)
 {
-	_Bool found_bad = 0;
+	bool found_bad = 0;
 	int var_count = 0;
 	const param_t* cur;
 
@@ -301,7 +144,7 @@ static int Precedence(char op1, char op2)
 	return -1;
 }
 
-static _Bool IsRightAssociative(char op)
+static bool IsRightAssociative(char op)
 {
 	if (op == '^' || op == 'm')
 		return 1;
@@ -314,18 +157,19 @@ static _Bool IsRightAssociative(char op)
 									prev = last;
 				
 
-param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
+param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list, bool cond)
 {
 	param_t* head = NULL, * prev = NULL;
 	int num_ops = 0;
 	char* op_stack;
 	int op_top = 0;
 	const param_t* cur = SetupAssignments(src_head, assn_list);
+	conditional = cond;
 
 	if (GetErrno() != ERR_NONE)
 		return NULL;
 
-	for (const param_t* c = cur; c; c= c->next)
+	for (const param_t* c = cur; c; c = c->next)
 		if (c->type == PARAM_TYPE_OP)
 			num_ops++;
 

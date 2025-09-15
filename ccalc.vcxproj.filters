@@ -33,6 +33,9 @@
     <ClCompile Include="interactive.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="parse_param.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="param.h">
@@ -51,6 +54,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="__template.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="param_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

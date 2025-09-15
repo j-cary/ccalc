@@ -1,3 +1,6 @@
+/***************************************************************************************************
+Purpose: Entry point for the program. Dispatches control to interactive mode if necessary
+***************************************************************************************************/
 #include <stdio.h>
 #include "param.h"
 #include "error.h"

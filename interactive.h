@@ -1,3 +1,7 @@
+/***************************************************************************************************
+Purpose: Define an interface for the interactive mode
+***************************************************************************************************/
 #pragma once
 
-void InteractiveMode();
+/* Entry point for interactive mode */
+void InteractiveMode(void);

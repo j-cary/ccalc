@@ -1,3 +1,6 @@
+/***************************************************************************************************
+Purpose: Handle input from the user and compute accordingly
+***************************************************************************************************/
 #include <stdio.h> //getc
 #include <string.h> //strcmp
 
@@ -7,7 +10,15 @@
 #include "var.h"
 #include "compute.h"
 
+/***************************************************************************************************
+										Defines/Typedefs
+***************************************************************************************************/
+
 #define BASE_BUF_SIZE 64
+
+/***************************************************************************************************
+										Private Functions
+***************************************************************************************************/
 
 static char* Input()
 {
@@ -33,8 +44,8 @@ static char* Input()
 			int new_buf_size = buf_size + BASE_BUF_SIZE;
 			char* new_buf = malloc_s(new_buf_size);
 
-			for (int i = 0; i < buf_size; i++)
-				new_buf[i] = base[i]; //Copy the old buffer into the new one
+			//Copy the old buffer into the new one
+			memcpy(new_buf, base, buf_size);
 
 			free(base);
 
@@ -52,7 +63,11 @@ static char* Input()
 	return base;
 }
 
-void InteractiveMode()
+/***************************************************************************************************
+									   Interface Functions
+***************************************************************************************************/
+
+void InteractiveMode(void)
 {
 	while (1)
 	{

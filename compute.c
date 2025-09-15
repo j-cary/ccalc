@@ -1,3 +1,6 @@
+/***************************************************************************************************
+Purpose: Compute the value of a RPN expression
+***************************************************************************************************/
 #include <math.h>
 
 #include "compute.h"
@@ -70,7 +73,6 @@ double Compute(const param_t* expr)
 
 	if (top != 1) //something like '2 3' as input
 		Error(ERR_SYNTAX, 0);
-
 
 	return ret;
 }

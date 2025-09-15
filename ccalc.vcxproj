@@ -144,6 +144,7 @@
     <ClInclude Include="interactive.h" />
     <ClInclude Include="param.h" />
     <ClInclude Include="var.h" />
+    <ClInclude Include="__template.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

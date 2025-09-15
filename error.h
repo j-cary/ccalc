@@ -1,5 +1,21 @@
+/***************************************************************************************************
+Purpose: Provide defines, functions, and types for handling errors
+***************************************************************************************************/
 #pragma once
 #include <stdlib.h> //size_t
+
+/***************************************************************************************************
+										Defines/Typedefs
+***************************************************************************************************/
+
+/* Print a warning message and set the errno. For functions with no return type, simply append a
+comma after the error code. This MUST BE USED for codes that do not abort the program. */
+#define Error(e, ret) do { \
+						_Error(e); \
+						return ret; } while(0)
+
+/* Exit the program. Use when an un-recoverable error occurs. */
+#define Exit(e) _Error(e)
 
 enum error_e
 {
@@ -19,24 +35,18 @@ enum error_e
 	ERROR_MAX_PRINTABLE //actually have to subtract one from this to get the max printable
 };
 
+/***************************************************************************************************
+									   Interface Functions
+***************************************************************************************************/
+
 void InitExit();
 __declspec(noreturn) void _Error(enum error_e code);
 
-// Gets the errno.
+/* Gets error information from the most recent 'Error' call */
 enum error_e GetErrno();
 
-// Gets the errno and clears it. Only intended to be used in the main module.
+/* Gets the errno and clears it. Only use this in the main module. */
 enum error_e ClrErrno();
 
-//Print a warning message and set the errno
-//For functions with a void return type, simply append a comma after the error code.
-//This MUST BE USED for codes that do not abort the program
-#define Error(e, ret) do { \
-						_Error(e); \
-						return ret; } while(0)
-
-//Exit the program.
-#define Exit(e) _Error(e)
-
-
+/* Malloc that will 'Exit' if no memory is available. */
 void* malloc_s(size_t size);

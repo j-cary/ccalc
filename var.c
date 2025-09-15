@@ -1,3 +1,6 @@
+/***************************************************************************************************
+Purpose: Handle the creation, modification, and loading of variables
+***************************************************************************************************/
 #include <string.h>
 #include <stdio.h> //FILE
 #include <ctype.h> //isspace
@@ -5,8 +8,16 @@
 #include "error.h"
 #include "var.h"
 
+/***************************************************************************************************
+										Defines/Typedefs
+***************************************************************************************************/
+
 #define VARS_MAX 128
 #define LINE_MAX_WIDTH 512
+
+/***************************************************************************************************
+										Private Variables
+***************************************************************************************************/
 
 static var_t varlist[VARS_MAX];
 static var_t* const ans = &varlist[0];
@@ -15,7 +26,11 @@ static unsigned short varcount = 0;
 static FILE* varfile = NULL;
 static const char* path;
 
+/***************************************************************************************************
+										Private Functions
+***************************************************************************************************/
 
+/* Open the variable file */
 static void OpenVarFile(const char* _path, const char* mode)
 {
 	const char filename[] = "ccalc_vars.txt";
@@ -28,6 +43,7 @@ static void OpenVarFile(const char* _path, const char* mode)
 	fopen_s(&varfile, full, mode);
 }
 
+/* Parse the var file. If parsing fails, the un-parseable vars are just ignored */
 static void ParseVarFile(FILE* file)
 {
 	char buf[LINE_MAX_WIDTH];
@@ -52,7 +68,10 @@ static void ParseVarFile(FILE* file)
 	}
 }
 
-//Open up the saved var file
+/***************************************************************************************************
+									   Interface Functions
+***************************************************************************************************/
+
 void InitVarList(const char* _path)
 {
 	//setup the reserved var

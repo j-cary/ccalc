@@ -1,3 +1,6 @@
+/***************************************************************************************************
+Purpose: Handle parameters
+***************************************************************************************************/
 #include <stdio.h> //printf
 #include <ctype.h> //isdigit
 #include <stdlib.h> //atof
@@ -6,10 +9,16 @@
 #include "var.h"
 #include "error.h"
 
-//TODO: add support for unary -
+/***************************************************************************************************
+										Private Variables
+***************************************************************************************************/
 
 const char* const operators = "+-*/%^()[]=";
 const char* const meaningful_operators = "+-*/%^()[]m"; //no equals, explicit unary minus
+
+/***************************************************************************************************
+										Defines/Typedefs
+***************************************************************************************************/
 
 static inline _Bool IsOp(const char x)
 {
@@ -305,7 +314,6 @@ static _Bool IsRightAssociative(char op)
 									prev = last;
 				
 
-//Convert the list to RPN. Generate a list of vars to assign to 
 param_t* ConvertParamList(const param_t* src_head, var_t*** assn_list)
 {
 	param_t* head = NULL, * prev = NULL;
